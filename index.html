@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Remote Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            user-select: none; /* Prevent text selection during press/hold */
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .title {
+            text-align: center;
+            font-size: 2em;
+            margin-bottom: 30px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .status.connected {
+            background: rgba(46, 204, 113, 0.3);
+            border: 1px solid #2ecc71;
+        }
+        
+        .status.authenticating {
+            background: rgba(243, 156, 18, 0.3);
+            border: 1px solid #f39c12;
+        }
+
+        .status.disconnected {
+            background: rgba(231, 76, 60, 0.3);
+            border: 1px solid #e74c3c;
+        }
+
+        .video-container {
+            width: 100%;
+            height: 300px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            margin-bottom: 30px;
+            overflow: hidden;
+            position: relative;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .video-stream {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-placeholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 1.2em;
+            text-align: center;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr;
+            gap: 15px;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        .control-btn {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+            border: none;
+            border-radius: 15px;
+            color: white;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 20px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            touch-action: manipulation; /* Improve touch responsiveness */
+        }
+
+        .control-btn:hover {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.2));
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .control-btn.pressed {
+            background: linear-gradient(145deg, rgba(46, 204, 113, 0.7), rgba(39, 174, 96, 0.7));
+            transform: translateY(1px) scale(0.98);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            border: 2px solid #2ecc71;
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .up { grid-column: 2; grid-row: 1; }
+        .left { grid-column: 1; grid-row: 2; }
+        .stop { 
+            grid-column: 2; 
+            grid-row: 2; 
+            background: linear-gradient(145deg, #e74c3c, #c0392b);
+        }
+        .right { grid-column: 3; grid-row: 2; }
+        .down { grid-column: 2; grid-row: 3; }
+
+        .connection-section {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .connection-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 10px;
+            color: white;
+            font-size: 1em;
+            width: 280px;
+            margin-right: 10px;
+            backdrop-filter: blur(5px);
+        }
+
+        .connection-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .connect-btn {
+            background: linear-gradient(145deg, #3498db, #2980b9);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .connect-btn:hover {
+            background: linear-gradient(145deg, #5dade2, #3498db);
+            transform: translateY(-1px);
+        }
+
+        .info-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            text-align: center;
+        }
+
+        .command-display {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 10px;
+            margin-top: 20px;
+            text-align: center;
+            font-family: monospace;
+            font-size: 1.1em;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .command-display.active {
+            background: rgba(46, 204, 113, 0.3);
+            border: 1px solid #2ecc71;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .title {
+                font-size: 1.5em;
+            }
+            
+            .controls {
+                max-width: 250px;
+                gap: 10px;
+            }
+            
+            .control-btn {
+                padding: 15px;
+                font-size: 1em;
+            }
+
+            .connection-input {
+                width: 200px;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">🤖 Robot Control</h1>
+        
+        <div class="info-section">
+            <div>🌐 Internet Connection via Ngrok</div>
+            <div>📹 Live Camera Stream</div>
+            <div>🎮 Press & Hold Controls</div>
+            <div>⌨️ Keyboard: W/A/S/D or Arrow Keys</div>
+        </div>
+
+        <div class="connection-section">
+            <input type="text" class="connection-input" id="serverUrl" 
+                   placeholder="wss://suitably-precise-perch.ngrok-free.app" 
+                   value="wss://suitably-precise-perch.ngrok-free.app">
+            <button class="connect-btn" id="connectBtn" onclick="toggleConnection()">Connect</button>
+        </div>
+
+        <div id="status" class="status disconnected">
+            Disconnected
+        </div>
+
+        <div class="video-container">
+            <img class="video-stream" id="videoStream" style="display: none;" alt="Robot Camera Feed">
+            <div class="video-placeholder" id="videoPlaceholder">
+                📹 Camera feed will appear here<br>
+                <small>Connect to robot to start streaming</small>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn up" data-command="FORWARD" disabled>
+                ⬆️<br>Forward
+            </button>
+            <button class="control-btn left" data-command="LEFT" disabled>
+                ⬅️<br>Left
+            </button>
+            <button class="control-btn stop" onclick="sendCommand('STOP')" disabled>
+                ⏹️<br>Stop
+            </button>
+            <button class="control-btn right" data-command="RIGHT" disabled>
+                ➡️<br>Right
+            </button>
+            <button class="control-btn down" data-command="BACKWARD" disabled>
+                ⬇️<br>Backward
+            </button>
+        </div>
+
+        <div class="command-display" id="commandDisplay">
+            Ready - Press and hold movement buttons
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let isConnected = false;
+        let activeCommand = null;
+        let commandInterval = null;
+        let pressedKeys = new Set();
+        
+        const robotAuthToken = "_JAYNADYA_ROBOT_SECURE_2024_SELVA_PRIVATE";
+
+        function updateStatus(statusType, message = '') {
+            const statusEl = document.getElementById('status');
+            const connectBtn = document.getElementById('connectBtn');
+            const controlBtns = document.querySelectorAll('.control-btn');
+            const serverUrlInput = document.getElementById('serverUrl');
+
+            switch (statusType) {
+                case 'connected':
+                    statusEl.className = 'status connected';
+                    statusEl.textContent = message || 'Connected & Authenticated';
+                    connectBtn.textContent = 'Disconnect';
+                    controlBtns.forEach(btn => btn.disabled = false);
+                    serverUrlInput.disabled = true;
+                    isConnected = true;
+                    break;
+                case 'authenticating':
+                    statusEl.className = 'status authenticating';
+                    statusEl.textContent = message || 'Authenticating...';
+                    connectBtn.textContent = 'Disconnect';
+                    controlBtns.forEach(btn => btn.disabled = true);
+                    serverUrlInput.disabled = true;
+                    isConnected = false;
+                    break;
+                case 'disconnected':
+                default:
+                    statusEl.className = 'status disconnected';
+                    statusEl.textContent = message || 'Disconnected';
+                    connectBtn.textContent = 'Connect';
+                    controlBtns.forEach(btn => btn.disabled = true);
+                    serverUrlInput.disabled = false;
+                    isConnected = false;
+                    // Hide video stream
+                    const videoStream = document.getElementById('videoStream');
+                    const placeholder = document.getElementById('videoPlaceholder');
+                    videoStream.style.display = 'none';
+                    videoStream.src = '';
+                    placeholder.style.display = 'block';
+                    // Stop any active commands
+                    stopActiveCommand();
+                    break;
+            }
+        }
+
+        function updateCommandDisplay(command, active = false) {
+            const display = document.getElementById('commandDisplay');
+            if (active) {
+                display.textContent = `🤖 Active: ${command}`;
+                display.className = 'command-display active';
+            } else {
+                display.textContent = 'Ready - Press and hold movement buttons';
+                display.className = 'command-display';
+            }
+        }
+
+        function toggleConnection() {
+            if (socket && socket.readyState !== WebSocket.CLOSED) {
+                disconnect();
+            } else {
+                connect();
+            }
+        }
+
+        function connect() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            
+            if (!serverUrl) {
+                alert('Please enter server URL');
+                return;
+            }
+
+            updateStatus('disconnected', 'Connecting...');
+
+            try {
+                socket = new WebSocket(serverUrl);
+                
+                socket.onopen = function(event) {
+                    console.log('WebSocket connection established. Awaiting challenge...');
+                    updateStatus('disconnected', 'Connected, awaiting auth challenge...');
+                };
+
+                socket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('Received:', data);
+                        handleMessage(data);
+                    } catch (e) {
+                        console.error('Received non-JSON message:', event.data);
+                    }
+                };
+
+                socket.onclose = function(event) {
+                    console.log('Disconnected from robot server');
+                    updateStatus('disconnected', event.reason || 'Connection closed');
+                    socket = null;
+                };
+
+                socket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    updateStatus('disconnected', 'Connection error - Check if robot is online');
+                    socket = null;
+                };
+
+            } catch (error) {
+                console.error('Failed to connect:', error);
+                updateStatus('disconnected', 'Failed to connect');
+            }
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.close();
+            }
+            updateStatus('disconnected');
+        }
+        
+        function handleAuthentication(token) {
+            const authMessage = {
+                type: 'authenticate',
+                token: token,
+                timestamp: Date.now()
+            };
+            socket.send(JSON.stringify(authMessage));
+            console.log('Sent authentication request.');
+            updateStatus('authenticating');
+        }
+
+        function handleMessage(data) {
+            switch (data.type) {
+                case 'auth_challenge':
+                    console.log('Received auth challenge. Responding...');
+                    handleAuthentication(robotAuthToken);
+                    break;
+                case 'auth_success':
+                    console.log('Authentication successful!');
+                    updateStatus('connected', 'Robot Connected - Stream Active');
+                    break;
+                case 'video_frame':
+                    displayVideoFrame(data.data);
+                    break;
+                case 'video_info':
+                    console.log('Video info received:', data);
+                    break;
+                case 'command_executed':
+                    console.log('Command confirmed by server:', data.command);
+                    break;
+                case 'error':
+                    console.error('Server error:', data.message);
+                    if(data.message.includes("authentication")) {
+                        updateStatus('disconnected', 'Authentication Failed');
+                        disconnect();
+                    }
+                    break;
+                default:
+                    console.log('Received unhandled message type:', data.type);
+            }
+        }
+
+        function displayVideoFrame(frameData) {
+            const videoStream = document.getElementById('videoStream');
+            const placeholder = document.getElementById('videoPlaceholder');
+            
+            if (frameData) {
+                videoStream.src = frameData;
+                videoStream.style.display = 'block';
+                placeholder.style.display = 'none';
+            }
+        }
+
+        function sendCommand(command) {
+            if (!socket || !isConnected) {
+                console.error('Not authenticated to send commands.');
+                return;
+            }
+
+            const message = {
+                type: 'robot_command',
+                command: command,
+                timestamp: Date.now()
+            };
+
+            socket.send(JSON.stringify(message));
+            console.log('Sent command:', command);
+        }
+
+        function startCommand(command, button) {
+            if (!isConnected || activeCommand === command) return;
+            
+            // Stop any existing command
+            stopActiveCommand();
+            
+            // Start new command
+            activeCommand = command;
+            sendCommand(command);
+            updateCommandDisplay(command, true);
+            
+            // Add visual feedback
+            button.classList.add('pressed');
+            
+            // Send command repeatedly while held (every 100ms)
+            commandInterval = setInterval(() => {
+                if (activeCommand === command) {
+                    sendCommand(command);
+                }
+            }, 100);
+        }
+
+        function stopActiveCommand() {
+            if (activeCommand) {
+                // Send stop command
+                sendCommand('STOP');
+                
+                // Clear interval
+                if (commandInterval) {
+                    clearInterval(commandInterval);
+                    commandInterval = null;
+                }
+                
+                // Remove visual feedback from all buttons
+                document.querySelectorAll('.control-btn').forEach(btn => {
+                    btn.classList.remove('pressed');
+                });
+                
+                // Update display
+                updateCommandDisplay('', false);
+                
+                activeCommand = null;
+            }
+        }
+
+        // Setup press and hold for movement buttons
+        function setupPressHold() {
+            const movementButtons = document.querySelectorAll('.control-btn[data-command]');
+            
+            movementButtons.forEach(button => {
+                const command = button.getAttribute('data-command');
+                
+                // Mouse events
+                button.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    startCommand(command, button);
+                });
+                
+                button.addEventListener('mouseup', (e) => {
+                    e.preventDefault();
+                    stopActiveCommand();
+                });
+                
+                button.addEventListener('mouseleave', (e) => {
+                    stopActiveCommand();
+                });
+                
+                // Touch events for mobile
+                button.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    startCommand(command, button);
+                });
+                
+                button.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    stopActiveCommand();
+                });
+                
+                button.addEventListener('touchcancel', (e) => {
+                    e.preventDefault();
+                    stopActiveCommand();
+                });
+            });
+        }
+
+        // Keyboard controls with press and hold
+        document.addEventListener('keydown', function(event) {
+            if (!isConnected) return;
+            
+            const key = event.key.toLowerCase();
+            
+            // Prevent repeated keydown events
+            if (pressedKeys.has(key)) return;
+            pressedKeys.add(key);
+            
+            const keyMap = {
+                'w': 'FORWARD', 'arrowup': 'FORWARD',
+                's': 'BACKWARD', 'arrowdown': 'BACKWARD',
+                'a': 'LEFT', 'arrowleft': 'LEFT',
+                'd': 'RIGHT', 'arrowright': 'RIGHT',
+                ' ': 'STOP', 'x': 'STOP'
+            };
+            
+            const command = keyMap[key];
+            if (command && command !== 'STOP') {
+                event.preventDefault();
+                
+                // Find corresponding button for visual feedback
+                const button = document.querySelector(`[data-command="${command}"]`);
+                if (button) {
+                    startCommand(command, button);
+                }
+            } else if (command === 'STOP') {
+                event.preventDefault();
+                stopActiveCommand();
+            }
+        });
+
+        document.addEventListener('keyup', function(event) {
+            if (!isConnected) return;
+            
+            const key = event.key.toLowerCase();
+            pressedKeys.delete(key);
+            
+            const keyMap = {
+                'w': 'FORWARD', 'arrowup': 'FORWARD',
+                's': 'BACKWARD', 'arrowdown': 'BACKWARD', 
+                'a': 'LEFT', 'arrowleft': 'LEFT',
+                'd': 'RIGHT', 'arrowright': 'RIGHT'
+            };
+            
+            const command = keyMap[key];
+            if (command && activeCommand === command) {
+                event.preventDefault();
+                stopActiveCommand();
+            }
+        });
+
+        // Prevent context menu on long press
+        document.addEventListener('contextmenu', function(e) {
+            if (e.target.classList.contains('control-btn')) {
+                e.preventDefault();
+            }
+        });
+
+        // Stop command if window loses focus
+        window.addEventListener('blur', function() {
+            stopActiveCommand();
+            pressedKeys.clear();
+        });
+
+        // Initialize
+        updateStatus('disconnected');
+        setupPressHold();
+        
+        // Auto-connect on page load
+        window.addEventListener('load', function() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            if (serverUrl && serverUrl.trim() !== '') {
+                console.log('Auto-connecting to robot...');
+                setTimeout(connect, 1000);
+            }
+        });
+    </script>
+</body>
+</html>
